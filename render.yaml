@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: probedge
+    runtime: dotnet
+    buildCommand: dotnet publish ProbEdge.csproj -c Release -o out
+    startCommand: dotnet out/ProbEdge.dll
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
