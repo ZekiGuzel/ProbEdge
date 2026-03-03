@@ -1,0 +1,64 @@
+@page "/signals"
+@inject ProbEdge.Services.PolymarketService PolymarketService
+
+<div style="margin-bottom:1.5rem;">
+    <h1 style="font-size:1.8rem; font-weight:800; margin-bottom:0.5rem;">⚡ Live Signals</h1>
+    <p style="color:#94a3b8;">Real-time probability movements and trading signals</p>
+</div>
+
+@if (signals == null)
+{
+    <div style="text-align:center; padding:3rem; color:#94a3b8;">Analyzing markets...</div>
+}
+else
+{
+    <div style="margin-bottom:2rem;">
+        @foreach (var signal in signals)
+        {
+            <div class="signal-alert">
+                <div>
+                    <span class="signal-dot"></span>
+                    <strong>@signal.Title</strong>
+                    <div style="color:#94a3b8; font-size:0.85rem; margin-top:0.3rem; margin-left:1.2rem;">
+                        @signal.Market
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="@(signal.Change > 0 ? "positive" : "negative")" style="font-weight:800; font-size:1.1rem;">
+                        @(signal.Change > 0 ? "↑ +" : "↓ ")@Math.Abs(signal.Change)%
+                    </div>
+                    <div class="change-badge @(signal.Change > 0 ? "change-up" : "change-down")" style="margin-top:0.3rem;">
+                        @(signal.Change > 0 ? "BUY SIGNAL" : "DROP SIGNAL")
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div style="background:#1a2235; border:1px solid #1e293b; border-radius:12px; padding:1.5rem;">
+        <div class="section-title">📊 Signal Strength Legend</div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-top:1rem;">
+            <div style="text-align:center; padding:1rem; background:#111827; border-radius:8px;">
+                <div style="color:#00ff88; font-size:1.2rem; font-weight:800;">+10% to +20%</div>
+                <div style="color:#94a3b8; font-size:0.8rem; margin-top:0.3rem;">Strong Buy Signal</div>
+            </div>
+            <div style="text-align:center; padding:1rem; background:#111827; border-radius:8px;">
+                <div style="color:#fbbf24; font-size:1.2rem; font-weight:800;">+3% to +10%</div>
+                <div style="color:#94a3b8; font-size:0.8rem; margin-top:0.3rem;">Moderate Signal</div>
+            </div>
+            <div style="text-align:center; padding:1rem; background:#111827; border-radius:8px;">
+                <div style="color:#ff3366; font-size:1.2rem; font-weight:800;">-3% to -20%</div>
+                <div style="color:#94a3b8; font-size:0.8rem; margin-top:0.3rem;">Drop Signal</div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ProbEdge.Services.SignalData>? signals;
+
+    protected override async Task OnInitializedAsync()
+    {
+        signals = await PolymarketService.GetSignalsAsync();
+    }
+}

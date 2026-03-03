@@ -1,0 +1,211 @@
+﻿@page "/"
+@using System.Timers
+@implements IDisposable
+@inject ProbEdge.Services.PolymarketService PolymarketService
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Active Markets</div>
+        <div class="stat-value neutral">@activeMarkets</div>
+        <div class="stat-change positive">↑ 12 new today</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Arbitrage Opportunities</div>
+        <div class="stat-value positive">@arbCount</div>
+        <div class="stat-change positive">↑ High activity</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Signals Generated</div>
+        <div class="stat-value neutral">@signalCount</div>
+        <div class="stat-change positive">↑ 24h active</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Volume</div>
+        <div class="stat-value positive">$@totalVolume</div>
+        <div class="stat-change positive">↑ 8.3% today</div>
+    </div>
+</div>
+
+<!-- SIGNALS -->
+<div class="section-title">⚡ Live Signals</div>
+<div style="margin-bottom:2rem;">
+    @foreach (var signal in signals)
+    {
+        <div class="signal-alert">
+            <div>
+                <span class="signal-dot"></span>
+                <strong>@signal.Title</strong>
+                <span style="color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;">@signal.Market</span>
+            </div>
+            <div style="display:flex; gap:1rem; align-items:center;">
+                <span class="@(signal.Change > 0 ? "positive" : "negative")" style="font-weight:700;">
+                    @(signal.Change > 0 ? "↑ +" : "↓ ")@Math.Abs(signal.Change)%
+                </span>
+                <span class="change-badge @(signal.Change > 0 ? "change-up" : "change-down")">
+                    @(signal.Change > 0 ? "BUY SIGNAL" : "DROP SIGNAL")
+                </span>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- MARKETS -->
+<div class="section-title">📊 Hot Markets</div>
+<div class="markets-grid">
+    @foreach (var market in markets)
+    {
+        <div class="market-card">
+            <div class="market-category">@market.Category</div>
+            <div class="market-title">@market.Title</div>
+            <div class="probability-bar">
+                <div class="probability-fill @GetProbClass(market.Probability)"
+                     style="width:@(market.Probability)%"></div>
+            </div>
+            <div class="market-footer">
+                <span class="prob-value @(market.Probability >= 60 ? "positive" : market.Probability >= 40 ? "neutral" : "negative")">
+                    @market.Probability%
+                </span>
+                <span class="market-volume">Vol: $@market.Volume</span>
+                <span class="change-badge @(market.Change >= 0 ? "change-up" : "change-down")">
+                    @(market.Change >= 0 ? "+" : "")@market.Change%
+                </span>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- ARBITRAGE -->
+<div class="arbitrage-section">
+    <div class="section-title" style="color:#fbbf24;">⚡ Arbitrage Detector</div>
+    @foreach (var arb in arbitrages)
+    {
+        <div class="arb-item">
+            <div>
+                <div style="font-weight:600; margin-bottom:0.3rem;">@arb.Title</div>
+                <div style="font-size:0.85rem; color:#94a3b8;">
+                    Polymarket <strong style="color:#3b82f6;">@arb.PolyProb%</strong>
+                    &nbsp;vs&nbsp;
+                    Kalshi <strong style="color:#fbbf24;">@arb.KalshiProb%</strong>
+                </div>
+            </div>
+            <div class="arb-opportunity">+@arb.Edge% EDGE</div>
+        </div>
+    }
+</div>
+
+<!-- TIMELINE -->
+<div class="timeline">
+    <div class="section-title">🕐 Live Timeline</div>
+    @foreach (var item in timeline)
+    {
+        <div class="timeline-item">
+            <div class="timeline-dot @item.Color"></div>
+            <div class="timeline-content">
+                <div class="timeline-title">@item.Title</div>
+                <div style="display:flex; gap:1rem;">
+                    <span class="timeline-time">@item.Time</span>
+                    <span class="@(item.Change > 0 ? "positive" : "negative")" style="font-size:0.85rem; font-weight:700;">
+                        @(item.Change > 0 ? "↑ +" : "↓ ")@Math.Abs(item.Change)%
+                    </span>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- COMMENTS -->
+<div class="comments-section">
+    <div class="section-title">💬 Community Insights</div>
+    <input class="comment-input" placeholder="Share your analysis... (Pro members only)" @bind="newComment" />
+    <button class="btn-primary" @onclick="AddComment" style="margin-bottom:1rem;">Post Analysis</button>
+    @foreach (var comment in comments)
+    {
+        <div class="comment-item">
+            <div class="comment-user">@comment.User <span class="badge-pro">PRO</span></div>
+            <div class="comment-text">@comment.Text</div>
+            <div class="comment-time">@comment.Time</div>
+        </div>
+    }
+</div>
+
+@code {
+    private Timer? _timer;
+    private int activeMarkets = 247;
+    private int arbCount = 12;
+    private int signalCount = 89;
+    private string totalVolume = "3.74B";
+    private string newComment = "";
+
+    private List<ProbEdge.Services.SignalData> signals = new();
+    private List<ProbEdge.Services.MarketData> markets = new();
+
+    private List<Arbitrage> arbitrages = new()
+    {
+        new Arbitrage { Title = "Will Trump sign AI regulation bill?", PolyProb = 45, KalshiProb = 52, Edge = 7 },
+        new Arbitrage { Title = "Fed rate cut June 2026", PolyProb = 55, KalshiProb = 61, Edge = 6 },
+        new Arbitrage { Title = "BTC ATH before Q3 2026", PolyProb = 67, KalshiProb = 59, Edge = 8 },
+    };
+
+    private List<TimelineItem> timeline = new()
+    {
+        new TimelineItem { Title = "BTC above 100k — Probability jumped", Time = "2 min ago", Change = 22, Color = "green" },
+        new TimelineItem { Title = "Fed Rate Decision — Sharp drop detected", Time = "8 min ago", Change = -8, Color = "red" },
+        new TimelineItem { Title = "AI Regulation — New arbitrage found", Time = "15 min ago", Change = 7, Color = "blue" },
+        new TimelineItem { Title = "Ukraine Ceasefire — Volume surge", Time = "22 min ago", Change = 15, Color = "green" },
+        new TimelineItem { Title = "GPT-5 Release — Sentiment rising", Time = "31 min ago", Change = 8, Color = "green" },
+        new TimelineItem { Title = "House 2026 — Drop signal", Time = "45 min ago", Change = -5, Color = "red" },
+    };
+
+    private List<Comment> comments = new()
+    {
+        new Comment { User = "trader_x", Text = "BTC arbitrage gap is widening — strong edge opportunity right now.", Time = "5 min ago" },
+        new Comment { User = "polyanalyst", Text = "Fed cut probability underpriced on Polymarket vs Kalshi. 6% edge.", Time = "12 min ago" },
+        new Comment { User = "edgehunter99", Text = "Ukraine ceasefire market moving fast, watch the 50% line.", Time = "28 min ago" },
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        markets = await PolymarketService.GetHotMarketsAsync();
+        signals = await PolymarketService.GetSignalsAsync();
+
+        _timer = new Timer(30000);
+        _timer.Elapsed += UpdateData;
+        _timer.Start();
+    }
+
+    private void UpdateData(object? sender, ElapsedEventArgs e)
+    {
+        var rnd = new Random();
+        foreach (var m in markets)
+        {
+            m.Probability = Math.Clamp(m.Probability + rnd.Next(-2, 3), 1, 99);
+            m.Change = rnd.Next(-10, 15);
+        }
+        arbCount = rnd.Next(8, 18);
+        signalCount += rnd.Next(0, 3);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void AddComment()
+    {
+        if (!string.IsNullOrWhiteSpace(newComment))
+        {
+            comments.Insert(0, new Comment
+            {
+                User = "you",
+                Text = newComment,
+                Time = "just now"
+            });
+            newComment = "";
+        }
+    }
+
+    private string GetProbClass(int prob) =>
+        prob >= 60 ? "prob-high" : prob >= 40 ? "prob-medium" : "prob-low";
+
+    public void Dispose() => _timer?.Dispose();
+
+    record Arbitrage { public string Title { get; set; } = ""; public int PolyProb { get; set; } public int KalshiProb { get; set; } public int Edge { get; set; } }
+    record TimelineItem { public string Title { get; set; } = ""; public string Time { get; set; } = ""; public int Change { get; set; } public string Color { get; set; } = ""; }
+    record Comment { public string User { get; set; } = ""; public string Text { get; set; } = ""; public string Time { get; set; } = ""; }
+}

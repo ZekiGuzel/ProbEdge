@@ -1,0 +1,29 @@
+﻿@inherits LayoutComponentBase
+
+<div class="layout">
+    <nav class="navbar">
+        <div>
+    <div class="logo">⚡ ProbEdge</div>
+    <div style="color:#94a3b8; font-size:0.7rem; letter-spacing:0.5px; margin-top:2px;">"See the signal, take the edge."</div>
+</div>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Dashboard</a>
+            <a href="/markets" class="nav-link">Markets</a>
+            <a href="/arbitrage" class="nav-link">Arbitrage</a>
+            <a href="/signals" class="nav-link">Signals</a>
+            <a href="/timeline" class="nav-link">Timeline</a>
+        </div>
+        <div style="display:flex; gap:1rem; align-items:center;">
+            <span style="color:#94a3b8; font-size:0.85rem;">Live <span class="signal-dot"></span></span>
+            <button class="btn-primary">Pro <span style="font-size:0.7rem;">✦</span></button>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        @Body
+    </main>
+
+    <footer class="footer">
+        <p>⚡ ProbEdge — Real-time Prediction Market Intelligence &nbsp;|&nbsp; Not financial advice</p>
+    </footer>
+</div>

@@ -1,0 +1,58 @@
+@page "/arbitrage"
+
+<div style="margin-bottom:1.5rem;">
+    <h1 style="font-size:1.8rem; font-weight:800; margin-bottom:0.5rem;">⚡ Arbitrage Detector</h1>
+    <p style="color:#94a3b8;">Price discrepancies between Polymarket and Kalshi</p>
+</div>
+
+<div class="arbitrage-section">
+    <div class="section-title" style="color:#fbbf24;">🔥 Active Opportunities</div>
+    @foreach (var arb in arbitrages)
+    {
+        <div class="arb-item">
+            <div style="flex:1;">
+                <div style="font-weight:600; margin-bottom:0.3rem;">@arb.Title</div>
+                <div style="font-size:0.85rem; color:#94a3b8;">
+                    Polymarket <strong style="color:#3b82f6;">@arb.PolyProb%</strong>
+                    &nbsp;vs&nbsp;
+                    Kalshi <strong style="color:#fbbf24;">@arb.KalshiProb%</strong>
+                </div>
+                <div style="font-size:0.8rem; color:#94a3b8; margin-top:0.3rem;">@arb.Category</div>
+            </div>
+            <div style="text-align:right;">
+                <div class="arb-opportunity">+@arb.Edge% EDGE</div>
+                <div style="font-size:0.75rem; color:#94a3b8; margin-top:0.3rem;">@arb.Volume vol</div>
+            </div>
+        </div>
+    }
+</div>
+
+<div style="background:#1a2235; border:1px solid #1e293b; border-radius:12px; padding:1.5rem;">
+    <div class="section-title">ℹ️ How to use Arbitrage Detector</div>
+    <p style="color:#94a3b8; font-size:0.9rem; line-height:1.6;">
+        Arbitrage opportunities occur when the same event is priced differently on two platforms.
+        Buy YES on the platform showing a lower probability and YES on the other to lock in a risk-free profit.
+        Always check liquidity before trading.
+    </p>
+</div>
+
+@code {
+    private List<ArbData> arbitrages = new()
+    {
+        new ArbData { Title = "Will Trump sign AI regulation bill?", PolyProb = 45, KalshiProb = 52, Edge = 7, Category = "Politics", Volume = "$2.1M" },
+        new ArbData { Title = "Fed rate cut June 2026", PolyProb = 55, KalshiProb = 61, Edge = 6, Category = "Economics", Volume = "$4.3M" },
+        new ArbData { Title = "BTC ATH before Q3 2026", PolyProb = 67, KalshiProb = 59, Edge = 8, Category = "Crypto", Volume = "$3.7M" },
+        new ArbData { Title = "US recession in 2026", PolyProb = 38, KalshiProb = 44, Edge = 6, Category = "Economics", Volume = "$1.9M" },
+        new ArbData { Title = "Ukraine ceasefire before July", PolyProb = 56, KalshiProb = 49, Edge = 7, Category = "Geopolitics", Volume = "$5.2M" },
+    };
+
+    record ArbData
+    {
+        public string Title { get; set; } = "";
+        public int PolyProb { get; set; }
+        public int KalshiProb { get; set; }
+        public int Edge { get; set; }
+        public string Category { get; set; } = "";
+        public string Volume { get; set; } = "";
+    }
+}

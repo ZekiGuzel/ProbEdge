@@ -1,0 +1,72 @@
+@page "/timeline"
+@using System.Timers
+@implements IDisposable
+
+<div style="margin-bottom:1.5rem;">
+    <h1 style="font-size:1.8rem; font-weight:800; margin-bottom:0.5rem;">🕐 Live Timeline</h1>
+    <p style="color:#94a3b8;">Real-time probability movements across all markets</p>
+</div>
+
+<div class="timeline">
+    @foreach (var item in timeline)
+    {
+        <div class="timeline-item">
+            <div class="timeline-dot @item.Color"></div>
+            <div class="timeline-content">
+                <div class="timeline-title">@item.Title</div>
+                <div style="display:flex; gap:1rem; align-items:center;">
+                    <span class="timeline-time">@item.Time</span>
+                    <span class="@(item.Change > 0 ? "positive" : "negative")" style="font-size:0.85rem; font-weight:700;">
+                        @(item.Change > 0 ? "↑ +" : "↓ ")@Math.Abs(item.Change)%
+                    </span>
+                    <span class="change-badge @(item.Change > 0 ? "change-up" : "change-down")">
+                        @item.Category
+                    </span>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private Timer? _timer;
+    private int _seconds = 0;
+
+    private List<TimelineItem> timeline = new()
+    {
+        new TimelineItem { Title = "BTC above 100k — Probability jumped", Time = "just now", Change = 22, Color = "green", Category = "Crypto" },
+        new TimelineItem { Title = "Fed Rate Decision — Sharp drop detected", Time = "2 min ago", Change = -8, Color = "red", Category = "Economics" },
+        new TimelineItem { Title = "AI Regulation — New arbitrage found", Time = "5 min ago", Change = 7, Color = "blue", Category = "Politics" },
+        new TimelineItem { Title = "Ukraine Ceasefire — Volume surge", Time = "9 min ago", Change = 15, Color = "green", Category = "Geopolitics" },
+        new TimelineItem { Title = "GPT-5 Release — Sentiment rising", Time = "14 min ago", Change = 8, Color = "green", Category = "Tech" },
+        new TimelineItem { Title = "House 2026 — Drop signal", Time = "18 min ago", Change = -5, Color = "red", Category = "Politics" },
+        new TimelineItem { Title = "BTC $150k — New positions opened", Time = "23 min ago", Change = 12, Color = "green", Category = "Crypto" },
+        new TimelineItem { Title = "Iran regime — Probability spike", Time = "31 min ago", Change = 19, Color = "green", Category = "Geopolitics" },
+        new TimelineItem { Title = "NBA Finals — Sharp movement", Time = "38 min ago", Change = -6, Color = "red", Category = "Sports" },
+        new TimelineItem { Title = "Fed March meeting — Stable", Time = "45 min ago", Change = 1, Color = "blue", Category = "Economics" },
+    };
+
+    protected override void OnInitialized()
+    {
+        _timer = new Timer(60000);
+        _timer.Elapsed += UpdateTimes;
+        _timer.Start();
+    }
+
+    private void UpdateTimes(object? sender, ElapsedEventArgs e)
+    {
+        _seconds += 60;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => _timer?.Dispose();
+
+    record TimelineItem
+    {
+        public string Title { get; set; } = "";
+        public string Time { get; set; } = "";
+        public int Change { get; set; }
+        public string Color { get; set; } = "";
+        public string Category { get; set; } = "";
+    }
+}

@@ -1,0 +1,55 @@
+@page "/markets"
+@inject ProbEdge.Services.PolymarketService PolymarketService
+
+<div style="margin-bottom:1.5rem;">
+    <h1 style="font-size:1.8rem; font-weight:800; margin-bottom:0.5rem;">📊 All Markets</h1>
+    <p style="color:#94a3b8;">Live prediction markets sorted by 24h volume</p>
+</div>
+
+@if (markets == null)
+{
+    <div style="text-align:center; padding:3rem; color:#94a3b8;">Loading markets...</div>
+}
+else
+{
+    <div class="markets-grid">
+        @foreach (var market in markets)
+        {
+            <div class="market-card">
+                <div class="market-category">@market.Category</div>
+                <div class="market-title">@market.Title</div>
+                <div class="probability-bar">
+                    <div class="probability-fill @GetProbClass(market.Probability)"
+                         style="width:@(market.Probability)%"></div>
+                </div>
+                <div class="market-footer">
+                    <span class="prob-value @(market.Probability >= 60 ? "positive" : market.Probability >= 40 ? "neutral" : "negative")">
+                        @market.Probability%
+                    </span>
+                    <span class="market-volume">Vol: $@market.Volume</span>
+                    <span class="change-badge @(market.Change >= 0 ? "change-up" : "change-down")">
+                        @(market.Change >= 0 ? "+" : "")@market.Change%
+                    </span>
+                </div>
+                @if (!string.IsNullOrEmpty(market.EndDate))
+                {
+                    <div style="margin-top:0.5rem; font-size:0.75rem; color:#94a3b8;">
+                        Ends: @market.EndDate
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<ProbEdge.Services.MarketData>? markets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        markets = await PolymarketService.GetHotMarketsAsync();
+    }
+
+    private string GetProbClass(int prob) =>
+        prob >= 60 ? "prob-high" : prob >= 40 ? "prob-medium" : "prob-low";
+}
