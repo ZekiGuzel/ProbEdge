@@ -1,64 +1,82 @@
 @page "/signals"
-@inject ProbEdge.Services.PolymarketService PolymarketService
+@using ProbEdge.Services
+@inject PolymarketService PolymarketService
 
-<div style="margin-bottom:1.5rem;">
-    <h1 style="font-size:1.8rem; font-weight:800; margin-bottom:0.5rem;">⚡ Live Signals</h1>
-    <p style="color:#94a3b8;">Real-time probability movements and trading signals</p>
-</div>
-
-@if (signals == null)
-{
-    <div style="text-align:center; padding:3rem; color:#94a3b8;">Analyzing markets...</div>
-}
-else
-{
-    <div style="margin-bottom:2rem;">
-        @foreach (var signal in signals)
-        {
-            <div class="signal-alert">
-                <div>
-                    <span class="signal-dot"></span>
-                    <strong>@signal.Title</strong>
-                    <div style="color:#94a3b8; font-size:0.85rem; margin-top:0.3rem; margin-left:1.2rem;">
-                        @signal.Market
-                    </div>
-                </div>
-                <div style="text-align:right;">
-                    <div class="@(signal.Change > 0 ? "positive" : "negative")" style="font-weight:800; font-size:1.1rem;">
-                        @(signal.Change > 0 ? "↑ +" : "↓ ")@Math.Abs(signal.Change)%
-                    </div>
-                    <div class="change-badge @(signal.Change > 0 ? "change-up" : "change-down")" style="margin-top:0.3rem;">
-                        @(signal.Change > 0 ? "BUY SIGNAL" : "DROP SIGNAL")
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
-
-    <div style="background:#1a2235; border:1px solid #1e293b; border-radius:12px; padding:1.5rem;">
-        <div class="section-title">📊 Signal Strength Legend</div>
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-top:1rem;">
-            <div style="text-align:center; padding:1rem; background:#111827; border-radius:8px;">
-                <div style="color:#00ff88; font-size:1.2rem; font-weight:800;">+10% to +20%</div>
-                <div style="color:#94a3b8; font-size:0.8rem; margin-top:0.3rem;">Strong Buy Signal</div>
-            </div>
-            <div style="text-align:center; padding:1rem; background:#111827; border-radius:8px;">
-                <div style="color:#fbbf24; font-size:1.2rem; font-weight:800;">+3% to +10%</div>
-                <div style="color:#94a3b8; font-size:0.8rem; margin-top:0.3rem;">Moderate Signal</div>
-            </div>
-            <div style="text-align:center; padding:1rem; background:#111827; border-radius:8px;">
-                <div style="color:#ff3366; font-size:1.2rem; font-weight:800;">-3% to -20%</div>
-                <div style="color:#94a3b8; font-size:0.8rem; margin-top:0.3rem;">Drop Signal</div>
-            </div>
+<div class="dashboard">
+    <div class="dash-header">
+        <div>
+            <h1 class="dash-title">⚡ Live Signals</h1>
+            <p class="dash-subtitle">Real-time BUY & DROP signals powered by Polymarket data</p>
         </div>
     </div>
-}
+
+    @if (_loading)
+    {
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Analyzing markets...</p>
+        </div>
+    }
+    else
+    {
+        <div class="signals-row" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); display:grid; gap:1rem;">
+            @foreach (var signal in _signals)
+            {
+                <div class="signal-card @(signal.Type == "BUY" ? "signal-buy" : "signal-drop")">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <div class="signal-type">@signal.Type</div>
+                        <div style="font-size:0.7rem; color:#64748b;">Signal Strength: @signal.Strength%</div>
+                    </div>
+                    <div class="signal-market">@signal.MarketTitle</div>
+                    <div class="signal-detail">
+                        <span>Prob: @signal.Probability%</span>
+                        <span class="@(signal.Change >= 0 ? "positive" : "negative")">
+                            @(signal.Change >= 0 ? "+" : "")@signal.Change%
+                        </span>
+                    </div>
+                    <div style="margin-top:0.8rem; font-size:0.75rem; color:#64748b;">
+                        Vol 24h: @signal.Volume24h · Liquidity: @signal.Liquidity
+                    </div>
+                    <div style="margin-top:0.5rem; height:4px; background:#1e293b; border-radius:2px;">
+                        <div style="height:100%; width:@signal.Strength%; background:@(signal.Type == "BUY" ? "#00ff88" : "#ff3366"); border-radius:2px; transition:width 0.5s;"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
 
 @code {
-    private List<ProbEdge.Services.SignalData>? signals;
+    private List<SignalViewModel> _signals = new();
+    private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
-        signals = await PolymarketService.GetSignalsAsync();
+        var markets = await PolymarketService.GetHotMarketsAsync();
+        _signals = markets
+            .Where(m => m.SignalStrength >= 30)
+            .OrderByDescending(m => m.SignalStrength)
+            .Select(m => new SignalViewModel
+            {
+                Type = m.Change > 0 ? "BUY" : "DROP",
+                MarketTitle = m.Title.Length > 60 ? m.Title[..60] + "..." : m.Title,
+                Probability = m.Probability,
+                Change = m.Change,
+                Strength = m.SignalStrength,
+                Volume24h = m.Volume24h,
+                Liquidity = m.Liquidity
+            }).ToList();
+        _loading = false;
+    }
+
+    record SignalViewModel
+    {
+        public string Type { get; set; } = "";
+        public string MarketTitle { get; set; } = "";
+        public int Probability { get; set; }
+        public int Change { get; set; }
+        public int Strength { get; set; }
+        public string Volume24h { get; set; } = "";
+        public string Liquidity { get; set; } = "";
     }
 }

@@ -1,211 +1,329 @@
 ﻿@page "/"
-@using System.Timers
+@using ProbEdge.Services
+@inject PolymarketService PolymarketService
 @implements IDisposable
-@inject ProbEdge.Services.PolymarketService PolymarketService
 
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-label">Active Markets</div>
-        <div class="stat-value neutral">@activeMarkets</div>
-        <div class="stat-change positive">↑ 12 new today</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">Arbitrage Opportunities</div>
-        <div class="stat-value positive">@arbCount</div>
-        <div class="stat-change positive">↑ High activity</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">Signals Generated</div>
-        <div class="stat-value neutral">@signalCount</div>
-        <div class="stat-change positive">↑ 24h active</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">Total Volume</div>
-        <div class="stat-value positive">$@totalVolume</div>
-        <div class="stat-change positive">↑ 8.3% today</div>
-    </div>
-</div>
+<div class="dashboard">
 
-<!-- SIGNALS -->
-<div class="section-title">⚡ Live Signals</div>
-<div style="margin-bottom:2rem;">
-    @foreach (var signal in signals)
+    <!-- TOP BAR -->
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <span class="live-badge">● LIVE</span>
+            <span class="top-bar-text">Polymarket Intelligence Platform</span>
+        </div>
+        <div class="top-bar-right">
+            <span class="top-bar-text">Last update: @_lastUpdate</span>
+            <button class="btn-refresh" @onclick="LoadMarkets" disabled="@_loading">
+                @(_loading ? "⟳ Loading..." : "⟳ Refresh")
+            </button>
+        </div>
+    </div>
+
+    <!-- HERO STATS -->
+    <div class="hero-stats">
+        <div class="hero-stat">
+            <div class="hero-stat-value">@_markets.Count</div>
+            <div class="hero-stat-label">Active Markets</div>
+        </div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat">
+            <div class="hero-stat-value positive">@_markets.Count(m => m.Change > 0)</div>
+            <div class="hero-stat-label">📈 Trending Up</div>
+        </div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat">
+            <div class="hero-stat-value negative">@_markets.Count(m => m.Change < 0)</div>
+            <div class="hero-stat-label">📉 Trending Down</div>
+        </div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat">
+            <div class="hero-stat-value" style="color:#f59e0b;">@_signals.Count</div>
+            <div class="hero-stat-label">⚡ Live Signals</div>
+        </div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat">
+            <div class="hero-stat-value" style="color:#3b82f6;">@_markets.Count(m => m.CommentCount > 50)</div>
+            <div class="hero-stat-label">💬 Hot Discussions</div>
+        </div>
+    </div>
+
+    <!-- SIGNALS STRIP -->
+    @if (_signals.Any())
     {
-        <div class="signal-alert">
-            <div>
-                <span class="signal-dot"></span>
-                <strong>@signal.Title</strong>
-                <span style="color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;">@signal.Market</span>
-            </div>
-            <div style="display:flex; gap:1rem; align-items:center;">
-                <span class="@(signal.Change > 0 ? "positive" : "negative")" style="font-weight:700;">
-                    @(signal.Change > 0 ? "↑ +" : "↓ ")@Math.Abs(signal.Change)%
-                </span>
-                <span class="change-badge @(signal.Change > 0 ? "change-up" : "change-down")">
-                    @(signal.Change > 0 ? "BUY SIGNAL" : "DROP SIGNAL")
-                </span>
+        <div class="signals-strip">
+            <div class="signals-strip-title">⚡ TOP SIGNALS</div>
+            <div class="signals-strip-cards">
+                @foreach (var signal in _signals.Take(6))
+                {
+                    <div class="strip-signal @(signal.Type == "BUY" ? "signal-buy" : "signal-drop")">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="signal-type">@signal.Type</span>
+                            <span style="font-size:0.7rem; color:#64748b;">@signal.Strength%</span>
+                        </div>
+                        <div class="signal-market">@signal.MarketTitle</div>
+                        <div class="signal-detail">
+                            <span class="prob-value @GetProbClass(signal.Probability)">@signal.Probability%</span>
+                            <span class="@(signal.Change >= 0 ? "positive" : "negative")">
+                                @(signal.Change >= 0 ? "▲+" : "▼")@Math.Abs(signal.Change)%
+                            </span>
+                        </div>
+                        <div style="margin-top:0.5rem; height:3px; background:#1e293b; border-radius:2px;">
+                            <div style="height:100%; width:@signal.Strength%; background:@(signal.Type == "BUY" ? "#00ff88" : "#ff3366"); border-radius:2px;"></div>
+                        </div>
+                    </div>
+                }
             </div>
         </div>
     }
-</div>
 
-<!-- MARKETS -->
-<div class="section-title">📊 Hot Markets</div>
-<div class="markets-grid">
-    @foreach (var market in markets)
-    {
-        <div class="market-card">
-            <div class="market-category">@market.Category</div>
-            <div class="market-title">@market.Title</div>
-            <div class="probability-bar">
-                <div class="probability-fill @GetProbClass(market.Probability)"
-                     style="width:@(market.Probability)%"></div>
-            </div>
-            <div class="market-footer">
-                <span class="prob-value @(market.Probability >= 60 ? "positive" : market.Probability >= 40 ? "neutral" : "negative")">
-                    @market.Probability%
-                </span>
-                <span class="market-volume">Vol: $@market.Volume</span>
-                <span class="change-badge @(market.Change >= 0 ? "change-up" : "change-down")">
-                    @(market.Change >= 0 ? "+" : "")@market.Change%
-                </span>
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <input class="search-input" placeholder="🔍 Search markets..." @bind="_searchQuery" @bind:event="oninput" />
+            <div class="category-filters">
+                @foreach (var cat in _categories)
+                {
+                    <button class="cat-btn @(_activeCategory == cat ? "cat-active" : "")"
+                            @onclick="() => SetCategory(cat)">@cat</button>
+                }
             </div>
         </div>
-    }
-</div>
+        <div class="filter-right">
+            <select class="sort-select" @bind="_sortBy">
+                <option value="volume">Sort: Volume</option>
+                <option value="change">Sort: Change</option>
+                <option value="signal">Sort: Signal</option>
+                <option value="comments">Sort: Comments</option>
+            </select>
+        </div>
+    </div>
 
-<!-- ARBITRAGE -->
-<div class="arbitrage-section">
-    <div class="section-title" style="color:#fbbf24;">⚡ Arbitrage Detector</div>
-    @foreach (var arb in arbitrages)
+    <!-- MARKETS GRID -->
+    @if (_loading)
     {
-        <div class="arb-item">
-            <div>
-                <div style="font-weight:600; margin-bottom:0.3rem;">@arb.Title</div>
-                <div style="font-size:0.85rem; color:#94a3b8;">
-                    Polymarket <strong style="color:#3b82f6;">@arb.PolyProb%</strong>
-                    &nbsp;vs&nbsp;
-                    Kalshi <strong style="color:#fbbf24;">@arb.KalshiProb%</strong>
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading live market data...</p>
+        </div>
+    }
+    else
+    {
+        <div class="markets-grid-v2">
+            @foreach (var market in _sortedMarkets)
+            {
+                <div class="market-card-v2">
+
+                    <!-- CARD IMAGE -->
+                    @if (!string.IsNullOrEmpty(market.Image))
+                    {
+                        <div class="card-image">
+                            <img src="@market.Image" alt="@market.Title" loading="lazy" />
+                            <div class="card-image-overlay"></div>
+                            <div class="card-image-badges">
+                                <span class="cat-badge-img">@market.Category</span>
+                                @if (market.SignalStrength >= 60)
+                                {
+                                    <span class="hot-badge">🔥 HOT</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card-image card-image-placeholder">
+                            <div class="card-image-badges">
+                                <span class="cat-badge-img">@market.Category</span>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="card-body">
+
+                        <!-- TITLE -->
+                        <div class="market-title-v2">@market.Title</div>
+
+                        <!-- PROBABILITY -->
+                        <div class="prob-section">
+                            <div class="prob-header">
+                                <span class="prob-label">YES Probability</span>
+                                <span class="prob-value @GetProbClass(market.Probability)">@market.Probability%</span>
+                            </div>
+                            <div class="probability-bar">
+                                <div class="probability-fill @GetProbClass(market.Probability)"
+                                     style="width:@(Math.Min(market.Probability, 100))%"></div>
+                            </div>
+                        </div>
+
+                        <!-- BID / ASK -->
+                        @if (market.BestBid > 0 || market.BestAsk > 0)
+                        {
+                            <div class="bid-ask-row">
+                                <div class="bid-box">
+                                    <span class="ba-label">BID</span>
+                                    <span class="ba-value bid-val">@((int)(market.BestBid * 100))¢</span>
+                                </div>
+                                <div class="spread-box">
+                                    <span class="ba-label">SPREAD</span>
+                                    <span class="ba-value">@((int)((market.BestAsk - market.BestBid) * 100))¢</span>
+                                </div>
+                                <div class="ask-box">
+                                    <span class="ba-label">ASK</span>
+                                    <span class="ba-value ask-val">@((int)(market.BestAsk * 100))¢</span>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- VOLUME TREND -->
+                        <div class="volume-trend">
+                            <div class="vol-item">
+                                <span class="vol-label">24H</span>
+                                <span class="vol-value">$@market.Volume24h</span>
+                            </div>
+                            <div class="vol-item">
+                                <span class="vol-label">1W</span>
+                                <span class="vol-value">$@market.Volume1wk</span>
+                            </div>
+                            <div class="vol-item">
+                                <span class="vol-label">1M</span>
+                                <span class="vol-value">$@market.Volume1mo</span>
+                            </div>
+                            <div class="vol-item">
+                                <span class="vol-label">LIQ</span>
+                                <span class="vol-value" style="color:#3b82f6;">$@market.Liquidity</span>
+                            </div>
+                        </div>
+
+                        <!-- SIGNAL STRENGTH -->
+                        <div class="signal-strength-row">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:0.3rem;">
+                                <span style="font-size:0.72rem; color:#64748b;">Signal Strength</span>
+                                <span style="font-size:0.72rem; color:@GetSignalColor(market.SignalStrength); font-weight:600;">
+                                    @GetSignalLabel(market.SignalStrength)
+                                </span>
+                            </div>
+                            <div style="height:4px; background:#1e293b; border-radius:2px;">
+                                <div style="height:100%; width:@market.SignalStrength%; background:@GetSignalColor(market.SignalStrength); border-radius:2px; transition:width 0.5s;"></div>
+                            </div>
+                        </div>
+
+                        <!-- FOOTER -->
+                        <div class="card-footer-v2">
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <span class="change-badge @(market.Change >= 0 ? "change-up" : "change-down")">
+                                    @(market.Change >= 0 ? "▲" : "▼") @Math.Abs(market.Change)%
+                                </span>
+                                @if (market.CommentCount > 0)
+                                {
+                                    <span style="font-size:0.72rem; color:#64748b;">💬 @market.CommentCount</span>
+                                }
+                                @if (market.AcceptingOrders)
+                                {
+                                    <span style="font-size:0.65rem; color:#00ff88; background:rgba(0,255,136,0.1); padding:0.15rem 0.4rem; border-radius:3px;">OPEN</span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(market.EndDate))
+                            {
+                                <span class="market-date">📅 @FormatDate(market.EndDate)</span>
+                            }
+                        </div>
+
+                    </div>
                 </div>
-            </div>
-            <div class="arb-opportunity">+@arb.Edge% EDGE</div>
-        </div>
-    }
-</div>
-
-<!-- TIMELINE -->
-<div class="timeline">
-    <div class="section-title">🕐 Live Timeline</div>
-    @foreach (var item in timeline)
-    {
-        <div class="timeline-item">
-            <div class="timeline-dot @item.Color"></div>
-            <div class="timeline-content">
-                <div class="timeline-title">@item.Title</div>
-                <div style="display:flex; gap:1rem;">
-                    <span class="timeline-time">@item.Time</span>
-                    <span class="@(item.Change > 0 ? "positive" : "negative")" style="font-size:0.85rem; font-weight:700;">
-                        @(item.Change > 0 ? "↑ +" : "↓ ")@Math.Abs(item.Change)%
-                    </span>
-                </div>
-            </div>
-        </div>
-    }
-</div>
-
-<!-- COMMENTS -->
-<div class="comments-section">
-    <div class="section-title">💬 Community Insights</div>
-    <input class="comment-input" placeholder="Share your analysis... (Pro members only)" @bind="newComment" />
-    <button class="btn-primary" @onclick="AddComment" style="margin-bottom:1rem;">Post Analysis</button>
-    @foreach (var comment in comments)
-    {
-        <div class="comment-item">
-            <div class="comment-user">@comment.User <span class="badge-pro">PRO</span></div>
-            <div class="comment-text">@comment.Text</div>
-            <div class="comment-time">@comment.Time</div>
+            }
         </div>
     }
 </div>
 
 @code {
-    private Timer? _timer;
-    private int activeMarkets = 247;
-    private int arbCount = 12;
-    private int signalCount = 89;
-    private string totalVolume = "3.74B";
-    private string newComment = "";
+    private List<MarketData> _markets = new();
+    private List<SignalItem> _signals = new();
+    private string _searchQuery = "";
+    private string _activeCategory = "All";
+    private string _sortBy = "volume";
+    private bool _loading = true;
+    private string _lastUpdate = "";
+    private System.Timers.Timer? _timer;
 
-    private List<ProbEdge.Services.SignalData> signals = new();
-    private List<ProbEdge.Services.MarketData> markets = new();
+    private readonly List<string> _categories = new() { "All", "Crypto", "Politics", "Economics", "Tech", "Sports", "Geopolitics", "General" };
 
-    private List<Arbitrage> arbitrages = new()
+    private List<MarketData> _filteredMarkets
     {
-        new Arbitrage { Title = "Will Trump sign AI regulation bill?", PolyProb = 45, KalshiProb = 52, Edge = 7 },
-        new Arbitrage { Title = "Fed rate cut June 2026", PolyProb = 55, KalshiProb = 61, Edge = 6 },
-        new Arbitrage { Title = "BTC ATH before Q3 2026", PolyProb = 67, KalshiProb = 59, Edge = 8 },
-    };
+        get
+        {
+            var result = _markets.AsEnumerable();
+            if (_activeCategory != "All")
+                result = result.Where(m => m.Category == _activeCategory);
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+                result = result.Where(m => m.Title.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
+            return result.ToList();
+        }
+    }
 
-    private List<TimelineItem> timeline = new()
+    private List<MarketData> _sortedMarkets => _sortBy switch
     {
-        new TimelineItem { Title = "BTC above 100k — Probability jumped", Time = "2 min ago", Change = 22, Color = "green" },
-        new TimelineItem { Title = "Fed Rate Decision — Sharp drop detected", Time = "8 min ago", Change = -8, Color = "red" },
-        new TimelineItem { Title = "AI Regulation — New arbitrage found", Time = "15 min ago", Change = 7, Color = "blue" },
-        new TimelineItem { Title = "Ukraine Ceasefire — Volume surge", Time = "22 min ago", Change = 15, Color = "green" },
-        new TimelineItem { Title = "GPT-5 Release — Sentiment rising", Time = "31 min ago", Change = 8, Color = "green" },
-        new TimelineItem { Title = "House 2026 — Drop signal", Time = "45 min ago", Change = -5, Color = "red" },
-    };
-
-    private List<Comment> comments = new()
-    {
-        new Comment { User = "trader_x", Text = "BTC arbitrage gap is widening — strong edge opportunity right now.", Time = "5 min ago" },
-        new Comment { User = "polyanalyst", Text = "Fed cut probability underpriced on Polymarket vs Kalshi. 6% edge.", Time = "12 min ago" },
-        new Comment { User = "edgehunter99", Text = "Ukraine ceasefire market moving fast, watch the 50% line.", Time = "28 min ago" },
+        "change" => _filteredMarkets.OrderByDescending(m => Math.Abs(m.Change)).ToList(),
+        "signal" => _filteredMarkets.OrderByDescending(m => m.SignalStrength).ToList(),
+        "comments" => _filteredMarkets.OrderByDescending(m => m.CommentCount).ToList(),
+        _ => _filteredMarkets.OrderByDescending(m => m.Volume24hRaw).ToList()
     };
 
     protected override async Task OnInitializedAsync()
     {
-        markets = await PolymarketService.GetHotMarketsAsync();
-        signals = await PolymarketService.GetSignalsAsync();
-
-        _timer = new Timer(30000);
-        _timer.Elapsed += UpdateData;
+        await LoadMarkets();
+        _timer = new System.Timers.Timer(30000);
+        _timer.Elapsed += async (s, e) =>
+        {
+            await LoadMarkets();
+            await InvokeAsync(StateHasChanged);
+        };
         _timer.Start();
     }
 
-    private void UpdateData(object? sender, ElapsedEventArgs e)
+    private async Task LoadMarkets()
     {
-        var rnd = new Random();
-        foreach (var m in markets)
+        _loading = true;
+        StateHasChanged();
+        try
         {
-            m.Probability = Math.Clamp(m.Probability + rnd.Next(-2, 3), 1, 99);
-            m.Change = rnd.Next(-10, 15);
+            _markets = await PolymarketService.GetHotMarketsAsync();
+            _signals = _markets
+                .Where(m => m.SignalStrength >= 40)
+                .OrderByDescending(m => m.SignalStrength)
+                .Take(10)
+                .Select(m => new SignalItem
+                {
+                    Type = m.Change > 0 ? "BUY" : "DROP",
+                    MarketTitle = m.Title.Length > 45 ? m.Title[..45] + "..." : m.Title,
+                    Probability = m.Probability,
+                    Change = m.Change,
+                    Strength = m.SignalStrength
+                }).ToList();
+            _lastUpdate = DateTime.Now.ToString("HH:mm:ss");
         }
-        arbCount = rnd.Next(8, 18);
-        signalCount += rnd.Next(0, 3);
-        InvokeAsync(StateHasChanged);
+        catch { }
+        _loading = false;
     }
 
-    private void AddComment()
-    {
-        if (!string.IsNullOrWhiteSpace(newComment))
-        {
-            comments.Insert(0, new Comment
-            {
-                User = "you",
-                Text = newComment,
-                Time = "just now"
-            });
-            newComment = "";
-        }
-    }
+    private void SetCategory(string cat) => _activeCategory = cat;
+    private string GetProbClass(int prob) => prob >= 65 ? "positive" : prob >= 40 ? "neutral" : "negative";
+    private string GetSignalColor(int s) => s >= 70 ? "#00ff88" : s >= 45 ? "#f59e0b" : "#64748b";
+    private string GetSignalLabel(int s) => s >= 70 ? "STRONG" : s >= 45 ? "MODERATE" : "WEAK";
 
-    private string GetProbClass(int prob) =>
-        prob >= 60 ? "prob-high" : prob >= 40 ? "prob-medium" : "prob-low";
+    private string FormatDate(string dateStr)
+    {
+        if (DateTime.TryParse(dateStr, out var date))
+            return date.ToString("MMM dd, yyyy");
+        return dateStr;
+    }
 
     public void Dispose() => _timer?.Dispose();
 
-    record Arbitrage { public string Title { get; set; } = ""; public int PolyProb { get; set; } public int KalshiProb { get; set; } public int Edge { get; set; } }
-    record TimelineItem { public string Title { get; set; } = ""; public string Time { get; set; } = ""; public int Change { get; set; } public string Color { get; set; } = ""; }
-    record Comment { public string User { get; set; } = ""; public string Text { get; set; } = ""; public string Time { get; set; } = ""; }
+    record SignalItem
+    {
+        public string Type { get; set; } = "";
+        public string MarketTitle { get; set; } = "";
+        public int Probability { get; set; }
+        public int Change { get; set; }
+        public int Strength { get; set; }
+    }
 }
